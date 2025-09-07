@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { MapPinIcon } from '@heroicons/react/24/outline';
 import { useStationsStore, type BasicStation } from '../store/stationsStore';
 import StationListItem from './StationListItem';
@@ -8,13 +8,24 @@ interface StationsSidebarProps {
 }
 
 export default function StationsSidebar({ onStationSelect }: StationsSidebarProps) {
-  const { stations, loading, error } = useStationsStore();
-  const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
+  const { stations, loading, error, selectedStationId, setSelectedStation } = useStationsStore();
+  const stationRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const handleStationClick = (station: BasicStation) => {
-    setSelectedStationId(station.id);
+    setSelectedStation(station.id);
     onStationSelect?.(station);
   };
+
+  // Auto-scroll to selected station when it changes
+  useEffect(() => {
+    if (selectedStationId && stationRefs.current[selectedStationId]) {
+      const element = stationRefs.current[selectedStationId];
+      element?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }
+  }, [selectedStationId]);
 
   return (
     <div className="bg-gray-50 rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col" style={{ minHeight: 'calc(100vh - 140px)' }}>
@@ -45,12 +56,16 @@ export default function StationsSidebar({ onStationSelect }: StationsSidebarProp
         ) : (
           <div className="space-y-2 p-2">
             {stations.map((station) => (
-              <StationListItem
+              <div 
                 key={station.id}
-                station={station}
-                isSelected={selectedStationId === station.id}
-                onClick={handleStationClick}
-              />
+                ref={(el) => { stationRefs.current[station.id] = el; }}
+              >
+                <StationListItem
+                  station={station}
+                  isSelected={selectedStationId === station.id}
+                  onClick={handleStationClick}
+                />
+              </div>
             ))}
             
             {/* Loading more indicator */}

@@ -28,6 +28,7 @@ interface StationsState {
   error: string | null;
   currentPosition: [number, number] | null;
   currentZoom: number;
+  selectedStationId: string | null;
   
   // Actions
   setStations: (stations: BasicStation[]) => void;
@@ -36,6 +37,7 @@ interface StationsState {
   setLoadingDetail: (id: string, loading: boolean) => void;
   setError: (error: string | null) => void;
   setMapPosition: (position: [number, number], zoom: number) => void;
+  setSelectedStation: (stationId: string | null) => void;
   clearStations: () => void;
   getStationDetails: (id: string) => DetailedStation | null;
 }
@@ -48,6 +50,7 @@ export const useStationsStore = create<StationsState>((set, get) => ({
   error: null,
   currentPosition: [-23.5505, -46.6333], // São Paulo default
   currentZoom: 13,
+  selectedStationId: null,
   
   setStations: (stations) => {
     // Transform and validate basic station data
@@ -91,7 +94,8 @@ export const useStationsStore = create<StationsState>((set, get) => ({
   
   setError: (error) => set({ error }),
   setMapPosition: (position, zoom) => set({ currentPosition: position, currentZoom: zoom }),
-  clearStations: () => set({ stations: [], stationDetails: {}, error: null }),
+  setSelectedStation: (stationId) => set({ selectedStationId: stationId }),
+  clearStations: () => set({ stations: [], stationDetails: {}, error: null, selectedStationId: null }),
   
   getStationDetails: (id) => {
     const state = get();

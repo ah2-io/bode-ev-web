@@ -116,7 +116,7 @@ interface MapComponentProps {
 }
 
 export default function MapComponent({ className = '' }: MapComponentProps) {
-  const { stations, loading } = useStationsStore();
+  const { stations, loading, selectedStationId, setSelectedStation } = useStationsStore();
   
   const positionRef = useRef<[number, number]>([-23.5505, -46.6333]); // São Paulo
   const initialPosition = positionRef.current;
@@ -168,8 +168,16 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
             station.coordinates[1] <= 180
           )
           .map((station) => (
-          <Marker key={station.id} position={station.coordinates} />
-        ))}
+            <Marker 
+              key={station.id} 
+              position={station.coordinates}
+              eventHandlers={{
+                click: () => {
+                  setSelectedStation(station.id);
+                }
+              }}
+            />
+          ))}
       </MapContainer>
     </div>
   );
