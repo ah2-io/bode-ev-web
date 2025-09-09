@@ -311,6 +311,17 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
     }
   }, [clusterIsLoaded, getClusters, setClusterLoading]);
 
+  // Initial clustering when stations are loaded and cluster is ready
+  useEffect(() => {
+    if (stations.length > 0 && clusterIsLoaded && mapRef.current) {
+      console.log('Triggering initial clustering...');
+      const map = mapRef.current;
+      const bounds = map.getBounds();
+      const zoom = map.getZoom();
+      handleClustersUpdate(bounds, zoom);
+    }
+  }, [stations, clusterIsLoaded, handleClustersUpdate]);
+
   // Handle cluster click - zoom to break cluster
   const handleClusterClick = useCallback(async (cluster: ClusterPoint) => {
     if (!mapRef.current) return;
