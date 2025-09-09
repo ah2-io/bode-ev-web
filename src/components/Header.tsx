@@ -11,7 +11,7 @@ export default function Header({ user, onSignOut }: HeaderProps) {
   return (
     <div className="fixed top-0 left-0 right-0 z-[9999] animate-[slideDown_0.5s_ease-out_forwards] opacity-0 -translate-y-full">
       <header className="bg-white backdrop-blur-md border-b border-white/20 px-6 py-1">
-        <div className="flex justify-between items-center max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mx-auto">
           {/* Logo */}
           <div className="flex items-center">
             <img 
