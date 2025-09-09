@@ -29,10 +29,64 @@ const userLocationIcon = new L.Icon({
   popupAnchor: [0, -12],
 });
 
+// Types for region management
+interface MapBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
+interface FetchRegion extends MapBounds {
+  timestamp: number;
+}
+
+// Utility functions for region calculations
+const calculateBoundsFromCenter = (lat: number, lng: number, radius: number): MapBounds => {
+  // Convert radius from meters to approximate degrees
+  const latDegreePerMeter = 1 / 111320;
+  const lngDegreePerMeter = 1 / (111320 * Math.cos(lat * Math.PI / 180));
+  
+  const latOffset = radius * latDegreePerMeter;
+  const lngOffset = radius * lngDegreePerMeter;
+  
+  return {
+    north: lat + latOffset,
+    south: lat - latOffset,
+    east: lng + lngOffset,
+    west: lng - lngOffset,
+  };
+};
+
+const calculateIntersectionArea = (region1: MapBounds, region2: MapBounds): number => {
+  const intersectionNorth = Math.min(region1.north, region2.north);
+  const intersectionSouth = Math.max(region1.south, region2.south);
+  const intersectionEast = Math.min(region1.east, region2.east);
+  const intersectionWest = Math.max(region1.west, region2.west);
+  
+  if (intersectionNorth <= intersectionSouth || intersectionEast <= intersectionWest) {
+    return 0; // No intersection
+  }
+  
+  return (intersectionNorth - intersectionSouth) * (intersectionEast - intersectionWest);
+};
+
+const calculateRegionArea = (region: MapBounds): number => {
+  return (region.north - region.south) * (region.east - region.west);
+};
+
+const calculateIntersectionPercentage = (currentRegion: MapBounds, existingRegion: MapBounds): number => {
+  const intersectionArea = calculateIntersectionArea(currentRegion, existingRegion);
+  const currentArea = calculateRegionArea(currentRegion);
+  
+  if (currentArea === 0) return 0;
+  return (intersectionArea / currentArea) * 100;
+};
+
 // Component to handle map events
 function MapEventHandler() {
   const { setLoading, setStations, setError, setLoadingProgress } = useStationsStore();
-  const lastFetchRef = useRef<{ lat: number; lng: number; zoom: number; radius: number } | null>(null);
+  const fetchedRegionsRef = useRef<FetchRegion[]>([]);
 
   // Calculate map bounds radius in meters
   const calculateMapRadius = (map: any): number => {
@@ -74,19 +128,18 @@ function MapEventHandler() {
     }
 
     const radius = calculateMapRadius(map);
+    const currentRegion = calculateBoundsFromCenter(lat, lng, radius);
     
-    // Avoid duplicate requests
-    const lastFetch = lastFetchRef.current;
-    if (lastFetch && 
-        Math.abs(lastFetch.lat - lat) < 0.001 && 
-        Math.abs(lastFetch.lng - lng) < 0.001 && 
-        lastFetch.zoom === zoom &&
-        Math.abs(lastFetch.radius - radius) < 100) { // Allow 100m difference
-      console.log('Skipping duplicate fetch request');
+    // Check if current region has sufficient overlap with any fetched region
+    const hassufficientOverlap = fetchedRegionsRef.current.some(fetchedRegion => {
+      const intersectionPercent = calculateIntersectionPercentage(currentRegion, fetchedRegion);
+      return intersectionPercent >= 80;
+    });
+    
+    if (hassufficientOverlap) {
+      console.log('Skipping fetch - sufficient overlap with existing region');
       return;
     }
-
-    lastFetchRef.current = { lat, lng, zoom, radius };
 
     if (!client) {
       setError('Amplify client not configured');
@@ -119,6 +172,20 @@ function MapEventHandler() {
           
       if (response.data) {
         setStations(response.data);
+        
+        // Store the successfully fetched region
+        const newFetchedRegion: FetchRegion = {
+          ...currentRegion,
+          timestamp: Date.now(),
+        };
+        
+        // Add to fetched regions (keep only recent ones to prevent memory leak)
+        fetchedRegionsRef.current = [
+          ...fetchedRegionsRef.current.slice(-9), // Keep last 9 regions
+          newFetchedRegion
+        ];
+        
+        console.log(`Stored fetched region. Total regions: ${fetchedRegionsRef.current.length}`);
       } else if (response.errors) {
         setError(response.errors[0]?.message || 'Failed to fetch stations');
       }
