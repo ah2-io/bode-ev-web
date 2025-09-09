@@ -89,7 +89,6 @@ export function AuthWithOTP({ children }: AuthWithOTPProps) {
         setInitialCheckComplete(true);
       }
     } catch (err) {
-      console.log("Session validation failed");
       clearUser();
       setInitialCheckComplete(true);
     }
@@ -112,7 +111,6 @@ export function AuthWithOTP({ children }: AuthWithOTPProps) {
         clearUser();
       }
     } catch (err) {
-      console.log("Not authenticated");
       clearUser();
     } finally {
       setUserLoading(false);

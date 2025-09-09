@@ -90,7 +90,6 @@ export const useStationsStore = create<StationsState>((set, get) => ({
       station.longitude <= 180
     );
     
-    console.log(`Got ${stations.length} stations, ${transformedStations.length} valid`);
     set({ stations: transformedStations });
   },
   

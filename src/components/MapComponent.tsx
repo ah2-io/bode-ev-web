@@ -13,7 +13,6 @@ let client: any = null;
 try {
   client = generateClient();
 } catch (error) {
-  console.warn('Amplify client not ready:', error);
 }
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -99,7 +98,6 @@ function MapEventHandler({ onClustersUpdate }: { onClustersUpdate: (bounds: any,
     // Calculate distance from center to corner (diagonal)
     const radius = center.distanceTo(corner);
     
-    console.log(`Map radius: ${Math.round(radius)}m`);
     return Math.round(radius);
   };
 
@@ -110,22 +108,18 @@ function MapEventHandler({ onClustersUpdate }: { onClustersUpdate: (bounds: any,
     const lng = center.lng;
     // Validate parameters before making the request
     if (typeof lat !== 'number' || typeof lng !== 'number' || typeof zoom !== 'number') {
-      console.warn('Invalid parameters for fetchNearbyStations:', { lat, lng, zoom });
       return;
     }
 
     if (isNaN(lat) || isNaN(lng) || isNaN(zoom)) {
-      console.warn('NaN parameters detected:', { lat, lng, zoom });
       return;
     }
 
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      console.warn('Invalid coordinates:', { lat, lng });
       return;
     }
 
     if (zoom < 1 || zoom > 20) {
-      console.warn('Invalid zoom level:', zoom);
       return;
     }
 
@@ -139,7 +133,6 @@ function MapEventHandler({ onClustersUpdate }: { onClustersUpdate: (bounds: any,
     });
     
     if (hassufficientOverlap) {
-      console.log('Skipping fetch - sufficient overlap with existing region');
       return;
     }
 
@@ -187,7 +180,6 @@ function MapEventHandler({ onClustersUpdate }: { onClustersUpdate: (bounds: any,
           newFetchedRegion
         ];
         
-        console.log(`Stored fetched region. Total regions: ${fetchedRegionsRef.current.length}`);
         
         // Update clusters after successful fetch
         const bounds = map.getBounds();
@@ -197,7 +189,6 @@ function MapEventHandler({ onClustersUpdate }: { onClustersUpdate: (bounds: any,
         setError(response.errors[0]?.message || 'Failed to fetch stations');
       }
     } catch (error) {
-      console.error('Error fetching stations:', error);
       setError(error instanceof Error ? error.message : 'Unknown error');
     } finally {
       setTimeout(() => setLoading(false), 200); // Small delay to show 100%
@@ -226,7 +217,6 @@ function MapEventHandler({ onClustersUpdate }: { onClustersUpdate: (bounds: any,
   // Initial fetch when map is ready
   useEffect(() => {
     if (map && !initialFetchDoneRef.current) {
-      console.log('Map ready, performing initial fetch');
       initialFetchDoneRef.current = true;
       // Small delay to ensure map is fully rendered
       setTimeout(() => {
@@ -250,7 +240,6 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
     selectedStationId, 
     setSelectedStation,
     clusters,
-    clusterLoading,
     setClusters,
     setClusterLoading
   } = useStationsStore();
@@ -285,7 +274,6 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
   // Load points into cluster when stations change
   useEffect(() => {
     if (stations.length > 0) {
-      console.log(`Loading ${stations.length} stations into cluster`);
       loadPoints(stations);
     }
   }, [stations, loadPoints]);
@@ -314,7 +302,6 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
   // Initial clustering when stations are loaded and cluster is ready
   useEffect(() => {
     if (stations.length > 0 && clusterIsLoaded && mapRef.current) {
-      console.log('Triggering initial clustering...');
       const map = mapRef.current;
       const bounds = map.getBounds();
       const zoom = map.getZoom();
@@ -337,7 +324,6 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
         // Zoom to expansion level to break cluster
         map.setView([lat, lng], expansionZoom + 1, { animate: true });
       } catch (error) {
-        console.error('Error getting cluster expansion zoom:', error);
         // Fallback: just zoom in one level
         const [lng, lat] = cluster.geometry.coordinates;
         const currentZoom = map.getZoom();
@@ -425,7 +411,6 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
         )}
       </MapContainer>
 
-      {/* Location Button */}
       <LocationButton 
         onLocationFound={handleLocationFound}
         className="absolute bottom-16 left-4 z-[9999]"

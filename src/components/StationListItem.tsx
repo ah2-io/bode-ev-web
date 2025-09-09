@@ -43,7 +43,6 @@ export default function StationListItem({ station, isSelected, onClick }: Statio
       const [entry] = entries;
       if (entry.isIntersecting && !isVisible) {
         setIsVisible(true);
-        console.log(`Station ${station.id} became visible`);
       }
     }, 150),
     [station.id, isVisible]

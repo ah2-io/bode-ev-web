@@ -13,9 +13,8 @@ function App() {
 
       {/* Stations Sidebar - Fixed position overlay */}
       <div className="fixed right-4 top-16 bottom-4 w-80 z-[9998]">
-        <StationsSidebar onStationSelect={(station) => {
-          console.log('Selected station:', station);
-          // TODO: Center map on selected station
+        <StationsSidebar onStationSelect={() => {
+          // Handle station selection
         }} />
       </div>
     </>

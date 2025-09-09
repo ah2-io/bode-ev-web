@@ -38,21 +38,19 @@ export const useStationDetails = (stationId: string) => {
     // Check cache first
     const cached = requestCache.get(stationId);
     if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-      console.log(`Using cached data for station ${stationId}`);
       setStationDetails(stationId, cached.data);
       return;
     }
     
     // Check if request is already pending
     if (pendingRequests.has(stationId)) {
-      console.log(`Request already pending for station ${stationId}`);
       try {
         const result = await pendingRequests.get(stationId);
         if (result) {
           setStationDetails(stationId, result);
         }
       } catch (error) {
-        console.error(`Pending request failed for station ${stationId}:`, error);
+        // Request failed, continue with new request
       }
       return;
     }
@@ -67,7 +65,7 @@ export const useStationDetails = (stationId: string) => {
       // @ts-ignore - Temporary until schema is defined
       const response = await requestPromise;
 
-      console.log('Fetched station details:', response);  
+  
 
       if (response.data) {
         const stationData = {
@@ -84,7 +82,7 @@ export const useStationDetails = (stationId: string) => {
         setStationDetails(stationId, stationData);
       }
     } catch (error) {
-      console.error(`Error fetching details for station ${stationId}:`, error);
+      // Error fetching station details
     } finally {
       setLoadingDetail(stationId, false);
       pendingRequests.delete(stationId);
