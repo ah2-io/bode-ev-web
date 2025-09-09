@@ -3,30 +3,22 @@ import StationsSidebar from './components/StationsSidebar';
 
 function App() {
   return (
-    <main className="w-full min-h-screen flex flex-col pt-20">
-      {/* Main Content */}
-      <div className="flex gap-4 p-6">
-        {/* Map - 2/3 width - Sticky */}
-        <div 
-          className="flex-[2] sticky bg-white rounded-lg shadow-sm border border-gray-200" 
-          style={{ 
-            top: '24px', 
-            height: 'calc(100vh - 140px)',
-            alignSelf: 'flex-start'
-          }}
-        >
+    <>
+      <main className="w-full h-screen">
+        {/* Map - Full screen */}
+        <div className="absolute inset-0">
           <MapComponent className="h-full w-full" />
         </div>
+      </main>
 
-        {/* Stations Sidebar - 1/3 width - Scrollable */}
-        <div className="flex-[1]">
-          <StationsSidebar onStationSelect={(station) => {
-            console.log('Selected station:', station);
-            // TODO: Center map on selected station
-          }} />
-        </div>
+      {/* Stations Sidebar - Fixed position overlay */}
+      <div className="fixed right-4 top-16 bottom-4 w-80 z-[9998]">
+        <StationsSidebar onStationSelect={(station) => {
+          console.log('Selected station:', station);
+          // TODO: Center map on selected station
+        }} />
       </div>
-    </main>
+    </>
   );
 }
 

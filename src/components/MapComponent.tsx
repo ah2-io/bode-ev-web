@@ -5,7 +5,12 @@ import L from 'leaflet';
 import { generateClient } from 'aws-amplify/data';
 import { useStationsStore } from '../store/stationsStore';
 
-const client = generateClient();
+let client: any = null;
+try {
+  client = generateClient();
+} catch (error) {
+  console.warn('Amplify client not ready:', error);
+}
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -16,7 +21,7 @@ L.Icon.Default.mergeOptions({
 
 // Component to handle map events
 function MapEventHandler() {
-  const { setLoading, setStations, setError } = useStationsStore();
+  const { setLoading, setStations, setError, setLoadingProgress } = useStationsStore();
   const lastFetchRef = useRef<{ lat: number; lng: number; zoom: number; radius: number } | null>(null);
 
   // Calculate map bounds radius in meters
@@ -73,9 +78,25 @@ function MapEventHandler() {
 
     lastFetchRef.current = { lat, lng, zoom, radius };
 
+    if (!client) {
+      setError('Amplify client not configured');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
+      
+      // Simulate progressive loading
+      const progressSteps = [20, 40, 60, 80];
+      let currentStep = 0;
+      
+      const progressInterval = setInterval(() => {
+        if (currentStep < progressSteps.length) {
+          setLoadingProgress(progressSteps[currentStep]);
+          currentStep++;
+        }
+      }, 150);
       
       const response = await client.queries.getNearStations({
         latitude: lat,
@@ -83,6 +104,8 @@ function MapEventHandler() {
         distance: radius,
       });
 
+      clearInterval(progressInterval);
+      setLoadingProgress(100);
           
       if (response.data) {
         setStations(response.data);
@@ -93,9 +116,9 @@ function MapEventHandler() {
       console.error('Error fetching stations:', error);
       setError(error instanceof Error ? error.message : 'Unknown error');
     } finally {
-      setLoading(false);
+      setTimeout(() => setLoading(false), 200); // Small delay to show 100%
     }
-  }, [setLoading, setStations, setError]);
+  }, [setLoading, setStations, setError, setLoadingProgress]);
 
   useMapEvents({
     moveend: (e) => {
@@ -116,7 +139,7 @@ interface MapComponentProps {
 }
 
 export default function MapComponent({ className = '' }: MapComponentProps) {
-  const { stations, loading, selectedStationId, setSelectedStation } = useStationsStore();
+  const { stations, loading, loadingProgress, selectedStationId, setSelectedStation } = useStationsStore();
   
   const positionRef = useRef<[number, number]>([-23.5505, -46.6333]); // São Paulo
   const initialPosition = positionRef.current;
@@ -124,16 +147,15 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
   return (
     <div className={`${className} rounded-lg overflow-hidden relative`} style={{ height: '100%' }}>
       {loading && (
-        <div className="absolute top-0 left-0 right-0 z-[1000] bg-white/90 backdrop-blur-sm">
-          <div className="p-3">
-            <div className="flex items-center space-x-2">
-              <div className="flex-1">
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: '100%' }} />
-                </div>
-              </div>
-              <span className="text-sm text-gray-600 font-medium">Loading stations...</span>
-            </div>
+        <div className="fixed bottom-0 left-0 right-0 z-[1000]">
+          <div className="h-2 bg-gray-200">
+            <div 
+              className="h-full bg-gradient-to-r from-primary to-secondary transition-[width] duration-500 ease-out"
+              style={{ 
+                width: `${loadingProgress}%`,
+                boxShadow: '0 -3px 10px rgba(100, 255, 150, 0.9), 0 -6px 15px rgba(100, 255, 150, 0.6)'
+              }}
+            />
           </div>
         </div>
       )}
@@ -145,7 +167,7 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
         style={{ height: '100%', minHeight: '400px' }}
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         />
         

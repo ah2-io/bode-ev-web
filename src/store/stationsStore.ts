@@ -24,6 +24,7 @@ interface StationsState {
   stations: BasicStation[];
   stationDetails: Record<string, DetailedStation>;
   loading: boolean;
+  loadingProgress: number;
   loadingDetails: Set<string>;
   error: string | null;
   currentPosition: [number, number] | null;
@@ -34,6 +35,7 @@ interface StationsState {
   setStations: (stations: BasicStation[]) => void;
   setStationDetails: (id: string, details: DetailedStation) => void;
   setLoading: (loading: boolean) => void;
+  setLoadingProgress: (progress: number) => void;
   setLoadingDetail: (id: string, loading: boolean) => void;
   setError: (error: string | null) => void;
   setMapPosition: (position: [number, number], zoom: number) => void;
@@ -46,6 +48,7 @@ export const useStationsStore = create<StationsState>((set, get) => ({
   stations: [],
   stationDetails: {},
   loading: false,
+  loadingProgress: 0,
   loadingDetails: new Set(),
   error: null,
   currentPosition: [-23.5505, -46.6333], // São Paulo default
@@ -80,7 +83,8 @@ export const useStationsStore = create<StationsState>((set, get) => ({
     stationDetails: { ...state.stationDetails, [id]: details }
   })),
   
-  setLoading: (loading) => set({ loading }),
+  setLoading: (loading) => set({ loading, loadingProgress: loading ? 0 : 100 }),
+  setLoadingProgress: (progress) => set({ loadingProgress: progress }),
   
   setLoadingDetail: (id, loading) => set(state => {
     const newLoadingDetails = new Set(state.loadingDetails);

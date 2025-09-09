@@ -52,6 +52,31 @@
   }
 }
 
+/* Apple Maps style */
+.leaflet-container {
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.leaflet-control-container {
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
+}
+
+.leaflet-control-zoom a {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(10px);
+  border: none !important;
+  border-radius: 8px !important;
+  color: #007AFF !important;
+  font-weight: 500;
+}
+
+.leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(10px);
+  border-radius: 6px !important;
+  font-size: 10px !important;
+}
+
 body {
   margin: 0;
   font-family: 'Poppins', sans-serif;

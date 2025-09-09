@@ -28,11 +28,11 @@ export default function StationsSidebar({ onStationSelect }: StationsSidebarProp
   }, [selectedStationId]);
 
   return (
-    <div className="bg-gray-50 rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col" style={{ minHeight: 'calc(100vh - 140px)' }}>
+    <div className="bg-gradient-to-r from-white to-white/60 backdrop-blur-md rounded-r-[3rem] shadow-lg border border-white/20 overflow-hidden flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 bg-white">
-        <h2 className="text-xl font-semibold text-gray-800">Charging Stations</h2>
-        <p className="text-sm text-gray-600 mt-1">
+      <div className="p-4 border-b border-gray-200/50 bg-gradient-to-r from-secondary to-secondary/60 backdrop-blur-lg">
+        <h2 className="text-xl font-semibold text-white uppercase">Charging Stations</h2>
+        <p className="text-sm text-white/80 mt-1">
           {stations.length} stations {loading && '(loading...)'}
         </p>
         {error && (
@@ -40,8 +40,8 @@ export default function StationsSidebar({ onStationSelect }: StationsSidebarProp
         )}
       </div>
 
-      {/* Stations List */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Stations List - Scrollable */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
         {loading && stations.length === 0 ? (
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
