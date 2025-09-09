@@ -87,6 +87,7 @@ const calculateIntersectionPercentage = (currentRegion: MapBounds, existingRegio
 function MapEventHandler() {
   const { setLoading, setStations, setError, setLoadingProgress } = useStationsStore();
   const fetchedRegionsRef = useRef<FetchRegion[]>([]);
+  const initialFetchDoneRef = useRef(false);
 
   // Calculate map bounds radius in meters
   const calculateMapRadius = (map: any): number => {
@@ -197,7 +198,7 @@ function MapEventHandler() {
     }
   }, [setLoading, setStations, setError, setLoadingProgress]);
 
-  useMapEvents({
+  const map = useMapEvents({
     moveend: (e) => {
       const map = e.target;
       fetchNearbyStations(map);
@@ -207,6 +208,18 @@ function MapEventHandler() {
       fetchNearbyStations(map);
     },
   });
+
+  // Initial fetch when map is ready
+  useEffect(() => {
+    if (map && !initialFetchDoneRef.current) {
+      console.log('Map ready, performing initial fetch');
+      initialFetchDoneRef.current = true;
+      // Small delay to ensure map is fully rendered
+      setTimeout(() => {
+        fetchNearbyStations(map);
+      }, 500);
+    }
+  }, [map, fetchNearbyStations]);
 
   return null;
 }
