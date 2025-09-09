@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { ClusterPoint } from '../hooks/useCluster';
 
 // Basic station info from getNearStations
 export interface BasicStation {
@@ -31,6 +32,11 @@ interface StationsState {
   currentZoom: number;
   selectedStationId: string | null;
   
+  // Clustering state
+  clusters: ClusterPoint[];
+  visibleStations: BasicStation[]; // Only individual stations (not clustered)
+  clusterLoading: boolean;
+  
   // Actions
   setStations: (stations: BasicStation[]) => void;
   setStationDetails: (id: string, details: DetailedStation) => void;
@@ -42,6 +48,10 @@ interface StationsState {
   setSelectedStation: (stationId: string | null) => void;
   clearStations: () => void;
   getStationDetails: (id: string) => DetailedStation | null;
+  
+  // Clustering actions
+  setClusters: (clusters: ClusterPoint[]) => void;
+  setClusterLoading: (loading: boolean) => void;
 }
 
 export const useStationsStore = create<StationsState>((set, get) => ({
@@ -54,6 +64,11 @@ export const useStationsStore = create<StationsState>((set, get) => ({
   currentPosition: [-23.5505, -46.6333], // São Paulo default
   currentZoom: 13,
   selectedStationId: null,
+  
+  // Clustering state
+  clusters: [],
+  visibleStations: [],
+  clusterLoading: false,
   
   setStations: (stations) => {
     // Transform and validate basic station data
@@ -99,10 +114,44 @@ export const useStationsStore = create<StationsState>((set, get) => ({
   setError: (error) => set({ error }),
   setMapPosition: (position, zoom) => set({ currentPosition: position, currentZoom: zoom }),
   setSelectedStation: (stationId) => set({ selectedStationId: stationId }),
-  clearStations: () => set({ stations: [], stationDetails: {}, error: null, selectedStationId: null }),
+  clearStations: () => set({ 
+    stations: [], 
+    stationDetails: {}, 
+    error: null, 
+    selectedStationId: null,
+    clusters: [],
+    visibleStations: [] 
+  }),
   
   getStationDetails: (id) => {
     const state = get();
     return state.stationDetails[id] || null;
   },
+  
+  setClusters: (clusters) => {
+    // Separate clusters from individual stations
+    const individualStations: BasicStation[] = [];
+    
+    clusters.forEach(cluster => {
+      if (!cluster.properties.cluster) {
+        // Individual station - convert ClusterPoint to BasicStation
+        const station: BasicStation = {
+          id: cluster.properties.id,
+          stationId: cluster.properties.stationId,
+          latitude: cluster.geometry.coordinates[1],
+          longitude: cluster.geometry.coordinates[0],
+          coordinates: [cluster.geometry.coordinates[1], cluster.geometry.coordinates[0]]
+        };
+        individualStations.push(station);
+      }
+    });
+    
+    set({ 
+      clusters, 
+      visibleStations: individualStations,
+      clusterLoading: false 
+    });
+  },
+  
+  setClusterLoading: (loading) => set({ clusterLoading: loading }),
 }));

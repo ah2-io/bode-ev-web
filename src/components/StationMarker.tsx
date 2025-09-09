@@ -1,6 +1,6 @@
 import { Marker } from 'react-leaflet';
 import L from 'leaflet';
-import { BasicStation } from '../store/stationsStore';
+import { ClusterPoint } from '../hooks/useCluster';
 
 // Station icons
 const stationIcon = new L.Icon({
@@ -18,16 +18,16 @@ const stationSelectedIcon = new L.Icon({
 });
 
 interface StationMarkerProps {
-  station: BasicStation;
+  station: ClusterPoint;
   isSelected: boolean;
-  onClick: (station: BasicStation) => void;
+  onClick: (station: ClusterPoint) => void;
 }
 
 export default function StationMarker({ station, isSelected, onClick }: StationMarkerProps) {
   return (
     <Marker 
-      key={station.id} 
-      position={station.coordinates}
+      key={station.properties.id} 
+      position={[station.geometry.coordinates[1], station.geometry.coordinates[0]]} // [lat, lng]
       icon={isSelected ? stationSelectedIcon : stationIcon}
       eventHandlers={{
         click: () => {

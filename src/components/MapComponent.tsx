@@ -5,7 +5,9 @@ import L from 'leaflet';
 import { generateClient } from 'aws-amplify/data';
 import { useStationsStore } from '../store/stationsStore';
 import LocationButton from './LocationButton';
+import ClusterMarker from './ClusterMarker';
 import StationMarker from './StationMarker';
+import { useCluster, ClusterPoint } from '../hooks/useCluster';
 
 let client: any = null;
 try {
@@ -18,7 +20,6 @@ delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
 // User location icon
@@ -84,7 +85,7 @@ const calculateIntersectionPercentage = (currentRegion: MapBounds, existingRegio
 };
 
 // Component to handle map events
-function MapEventHandler() {
+function MapEventHandler({ onClustersUpdate }: { onClustersUpdate: (bounds: any, zoom: number) => void }) {
   const { setLoading, setStations, setError, setLoadingProgress } = useStationsStore();
   const fetchedRegionsRef = useRef<FetchRegion[]>([]);
   const initialFetchDoneRef = useRef(false);
@@ -187,6 +188,11 @@ function MapEventHandler() {
         ];
         
         console.log(`Stored fetched region. Total regions: ${fetchedRegionsRef.current.length}`);
+        
+        // Update clusters after successful fetch
+        const bounds = map.getBounds();
+        const zoom = map.getZoom();
+        onClustersUpdate(bounds, zoom);
       } else if (response.errors) {
         setError(response.errors[0]?.message || 'Failed to fetch stations');
       }
@@ -202,10 +208,18 @@ function MapEventHandler() {
     moveend: (e) => {
       const map = e.target;
       fetchNearbyStations(map);
+      // Update clusters on move
+      const bounds = map.getBounds();
+      const zoom = map.getZoom();
+      onClustersUpdate(bounds, zoom);
     },
     zoomend: (e) => {
       const map = e.target;
       fetchNearbyStations(map);
+      // Update clusters on zoom
+      const bounds = map.getBounds();
+      const zoom = map.getZoom();
+      onClustersUpdate(bounds, zoom);
     },
   });
 
@@ -229,12 +243,36 @@ interface MapComponentProps {
 }
 
 export default function MapComponent({ className = '' }: MapComponentProps) {
-  const { stations, loading, loadingProgress, selectedStationId, setSelectedStation } = useStationsStore();
+  const { 
+    stations, 
+    loading, 
+    loadingProgress, 
+    selectedStationId, 
+    setSelectedStation,
+    clusters,
+    clusterLoading,
+    setClusters,
+    setClusterLoading
+  } = useStationsStore();
   const mapRef = useRef<any>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   
   const positionRef = useRef<[number, number]>([-23.5505, -46.6333]); // São Paulo
   const initialPosition = positionRef.current;
+
+  // Initialize clustering
+  const { 
+    clusters: hookClusters,
+    loadPoints, 
+    getClusters, 
+    getClusterExpansionZoom,
+    isLoaded: clusterIsLoaded 
+  } = useCluster({
+    radius: 60,
+    maxZoom: 16,
+    minZoom: 0,
+    minPoints: 2,
+  });
 
   const handleLocationFound = (lat: number, lng: number) => {
     const position: [number, number] = [lat, lng];
@@ -243,6 +281,63 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
       mapRef.current.setView(position, 15);
     }
   };
+
+  // Load points into cluster when stations change
+  useEffect(() => {
+    if (stations.length > 0) {
+      console.log(`Loading ${stations.length} stations into cluster`);
+      loadPoints(stations);
+    }
+  }, [stations, loadPoints]);
+
+  // Sync hook clusters with store
+  useEffect(() => {
+    if (hookClusters.length > 0) {
+      setClusters(hookClusters);
+    }
+  }, [hookClusters, setClusters]);
+
+  // Handle cluster updates
+  const handleClustersUpdate = useCallback((bounds: any, zoom: number) => {
+    if (clusterIsLoaded && bounds) {
+      setClusterLoading(true);
+      const clusterBounds = {
+        west: bounds.getWest(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        north: bounds.getNorth(),
+      };
+      getClusters(clusterBounds, zoom);
+    }
+  }, [clusterIsLoaded, getClusters, setClusterLoading]);
+
+  // Handle cluster click - zoom to break cluster
+  const handleClusterClick = useCallback(async (cluster: ClusterPoint) => {
+    if (!mapRef.current) return;
+    
+    const map = mapRef.current;
+    const isCluster = cluster.properties.cluster;
+    
+    if (isCluster && cluster.properties.cluster_id !== undefined) {
+      try {
+        const expansionZoom = await getClusterExpansionZoom(cluster.properties.cluster_id);
+        const [lng, lat] = cluster.geometry.coordinates;
+        
+        // Zoom to expansion level to break cluster
+        map.setView([lat, lng], expansionZoom + 1, { animate: true });
+      } catch (error) {
+        console.error('Error getting cluster expansion zoom:', error);
+        // Fallback: just zoom in one level
+        const [lng, lat] = cluster.geometry.coordinates;
+        const currentZoom = map.getZoom();
+        map.setView([lat, lng], currentZoom + 2, { animate: true });
+      }
+    } else {
+      // Individual station - select it
+      const stationId = cluster.properties.id;
+      setSelectedStation(stationId);
+    }
+  }, [getClusterExpansionZoom, setSelectedStation]);
 
   return (
     <div className={`${className} rounded-lg overflow-hidden relative`} style={{ height: '100%' }}>
@@ -273,31 +368,32 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
         />
         
         {/* Map event handler */}
-        <MapEventHandler />
+        <MapEventHandler onClustersUpdate={handleClustersUpdate} />
         
-        {/* Render stations from store */}
-        {stations
-          .filter(station => 
-            station.coordinates && 
-            Array.isArray(station.coordinates) &&
-            station.coordinates.length === 2 &&
-            typeof station.coordinates[0] === 'number' &&
-            typeof station.coordinates[1] === 'number' &&
-            !isNaN(station.coordinates[0]) &&
-            !isNaN(station.coordinates[1]) &&
-            station.coordinates[0] >= -90 &&
-            station.coordinates[0] <= 90 &&
-            station.coordinates[1] >= -180 &&
-            station.coordinates[1] <= 180
-          )
-          .map((station) => (
-            <StationMarker
-              key={station.id}
-              station={station}
-              isSelected={selectedStationId === station.id}
-              onClick={(station) => setSelectedStation(station.id)}
-            />
-          ))}
+        {/* Render clusters and individual stations */}
+        {clusters.map((cluster) => {
+          const isCluster = cluster.properties.cluster;
+          const key = `${isCluster ? 'cluster' : 'station'}-${cluster.properties.cluster_id || cluster.properties.id}`;
+          
+          if (isCluster) {
+            return (
+              <ClusterMarker
+                key={key}
+                cluster={cluster}
+                onClick={handleClusterClick}
+              />
+            );
+          } else {
+            return (
+              <StationMarker
+                key={key}
+                station={cluster}
+                isSelected={selectedStationId === cluster.properties.id}
+                onClick={handleClusterClick}
+              />
+            );
+          }
+        })}
 
         {/* User location marker */}
         {userLocation && (

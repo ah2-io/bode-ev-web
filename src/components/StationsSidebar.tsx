@@ -8,7 +8,7 @@ interface StationsSidebarProps {
 }
 
 export default function StationsSidebar({ onStationSelect }: StationsSidebarProps) {
-  const { stations, loading, error, selectedStationId, setSelectedStation } = useStationsStore();
+  const { stations, visibleStations, loading, error, selectedStationId, setSelectedStation } = useStationsStore();
   const stationRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const handleStationClick = (station: BasicStation) => {
@@ -33,7 +33,7 @@ export default function StationsSidebar({ onStationSelect }: StationsSidebarProp
       <div className="p-4 border-b border-gray-200/50 bg-gradient-to-r from-secondary to-secondary/60 backdrop-blur-lg">
         <h2 className="text-xl font-semibold text-white uppercase">Charging Stations</h2>
         <p className="text-sm text-white/80 mt-1">
-          {stations.length} stations {loading && '(loading...)'}
+          {visibleStations.length} visible stations ({stations.length} total) {loading && '(loading...)'}
         </p>
         {error && (
           <p className="text-sm text-red-600 mt-1">Error: {error}</p>
@@ -42,20 +42,20 @@ export default function StationsSidebar({ onStationSelect }: StationsSidebarProp
 
       {/* Stations List - Scrollable */}
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-        {loading && stations.length === 0 ? (
+        {loading && visibleStations.length === 0 ? (
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-gray-500">Loading stations...</p>
           </div>
-        ) : stations.length === 0 ? (
+        ) : visibleStations.length === 0 ? (
           <div className="p-8 text-center text-gray-500">
             <MapPinIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p className="font-medium">No stations found</p>
-            <p className="text-sm mt-2">Try moving the map or zooming out to find stations in other areas.</p>
+            <p className="font-medium">No individual stations visible</p>
+            <p className="text-sm mt-2">Zoom in to see individual stations or they may be clustered on the map.</p>
           </div>
         ) : (
           <div className="space-y-2 p-2">
-            {stations.map((station) => (
+            {visibleStations.map((station) => (
               <div 
                 key={station.id}
                 ref={(el) => { stationRefs.current[station.id] = el; }}
@@ -69,7 +69,7 @@ export default function StationsSidebar({ onStationSelect }: StationsSidebarProp
             ))}
             
             {/* Loading more indicator */}
-            {loading && stations.length > 0 && (
+            {loading && visibleStations.length > 0 && (
               <div className="p-4 text-center">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mx-auto"></div>
               </div>
