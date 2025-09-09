@@ -1,9 +1,10 @@
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { generateClient } from 'aws-amplify/data';
 import { useStationsStore } from '../store/stationsStore';
+import LocationButton from './LocationButton';
 
 let client: any = null;
 try {
@@ -17,6 +18,14 @@ L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// User location icon
+const userLocationIcon = new L.Icon({
+  iconUrl: '/user-location.png',
+  iconSize: [48, 48],
+  iconAnchor: [24, 24],
+  popupAnchor: [0, -12],
 });
 
 // Component to handle map events
@@ -140,9 +149,19 @@ interface MapComponentProps {
 
 export default function MapComponent({ className = '' }: MapComponentProps) {
   const { stations, loading, loadingProgress, selectedStationId, setSelectedStation } = useStationsStore();
+  const mapRef = useRef<any>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   
   const positionRef = useRef<[number, number]>([-23.5505, -46.6333]); // São Paulo
   const initialPosition = positionRef.current;
+
+  const handleLocationFound = (lat: number, lng: number) => {
+    const position: [number, number] = [lat, lng];
+    setUserLocation(position);
+    if (mapRef.current) {
+      mapRef.current.setView(position, 15);
+    }
+  };
 
   return (
     <div className={`${className} rounded-lg overflow-hidden relative`} style={{ height: '100%' }}>
@@ -165,6 +184,7 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
         zoom={13}
         className="h-full w-full"
         style={{ height: '100%', minHeight: '400px' }}
+        ref={mapRef}
       >
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
@@ -200,7 +220,31 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
               }}
             />
           ))}
+
+        {/* User location marker */}
+        {userLocation && (
+          <Marker 
+            position={userLocation}
+            icon={userLocationIcon}
+          >
+            <Popup>
+              <div className="text-center">
+                <strong>Your Location</strong>
+                <br />
+                <small>Lat: {userLocation[0].toFixed(6)}</small>
+                <br />
+                <small>Lng: {userLocation[1].toFixed(6)}</small>
+              </div>
+            </Popup>
+          </Marker>
+        )}
       </MapContainer>
+
+      {/* Location Button */}
+      <LocationButton 
+        onLocationFound={handleLocationFound}
+        className="absolute bottom-16 left-4 z-[9999]"
+      />
     </div>
   );
 }
