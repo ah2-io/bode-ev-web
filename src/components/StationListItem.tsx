@@ -79,7 +79,7 @@ export default function StationListItem({ station, isSelected, onClick }: Statio
       onClick={handleClick}
       className={`p-3 bg-white rounded-lg shadow-sm border cursor-pointer transition-all hover:shadow-md ${
         isSelected 
-          ? 'border-blue-500 bg-blue-50' 
+          ? 'border-primary bg-primary-light' 
           : 'border-gray-200 hover:border-gray-300'
       }`}
     >

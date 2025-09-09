@@ -44,7 +44,7 @@ export default function StationsSidebar({ onStationSelect }: StationsSidebarProp
       <div className="flex-1 overflow-y-auto">
         {loading && stations.length === 0 ? (
           <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-gray-500">Loading stations...</p>
           </div>
         ) : stations.length === 0 ? (
@@ -71,7 +71,7 @@ export default function StationsSidebar({ onStationSelect }: StationsSidebarProp
             {/* Loading more indicator */}
             {loading && stations.length > 0 && (
               <div className="p-4 text-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mx-auto"></div>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mx-auto"></div>
               </div>
             )}
           </div>

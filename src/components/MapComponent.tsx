@@ -129,7 +129,7 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
             <div className="flex items-center space-x-2">
               <div className="flex-1">
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded-full animate-pulse" style={{ width: '100%' }} />
+                  <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: '100%' }} />
                 </div>
               </div>
               <span className="text-sm text-gray-600 font-medium">Loading stations...</span>

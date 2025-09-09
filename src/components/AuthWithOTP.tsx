@@ -6,7 +6,9 @@ import {
   signOut,
   getCurrentUser,
 } from "aws-amplify/auth";
+import { Button, Input } from '@headlessui/react';
 import { useUserStore } from '../store/userStore';
+import Header from './Header';
 import "@aws-amplify/ui-react/styles.css";
 
 interface AuthWithOTPProps {
@@ -178,29 +180,36 @@ export function AuthWithOTP({ children }: AuthWithOTPProps) {
   // Show loading spinner during initial auth check
   if (!initialCheckComplete) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+      <div className="w-full min-h-screen flex flex-col">
+        <Header />
+        <div className="flex justify-center items-center flex-1 pt-20 animate-[zoomOut_0.3s_ease-out_forwards]">
+          <div className="bg-white rounded-full p-6">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          </div>
         </div>
       </div>
     );
   }
 
-  // If authenticated, show the app
   if (formState.step === "authenticated" && isAuthenticated && user) {
-    return React.cloneElement(children as React.ReactElement, {
-      user,
-      handleSignOut,
-    });
+    return (
+      <div className="w-full min-h-screen flex flex-col">
+        <Header user={user} onSignOut={handleSignOut} />
+        {React.cloneElement(children as React.ReactElement, {
+          user,
+          handleSignOut,
+        })}
+      </div>
+    );
   }
 
-  // Otherwise, show the login form
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50">
-      <div className="bg-white p-10 rounded-lg shadow-lg w-full max-w-md">
-        <h1 className="text-center mb-8 text-2xl font-semibold">
-          sign in to bodeEV
+    <div className="w-full min-h-screen flex flex-col">
+      <Header />
+      <div className="flex justify-center items-center flex-1 pt-20">
+        <div className="bg-gradient-to-r from-white to-white/60 backdrop-blur-md p-14 py-16 rounded-r-[3rem] w-full max-w-md animate-fade-in transition-[height] duration-300 ease-out">
+        <h1 className="mb-8 text-2xl font-semibold tracking-tight">
+          SIGN IN TO ADMIN PORTAL
         </h1>
 
         {formState.error && (
@@ -211,38 +220,35 @@ export function AuthWithOTP({ children }: AuthWithOTPProps) {
           <form onSubmit={handleSendOTP}>
             <div className="mb-5">
               <div className="flex gap-3 mb-4">
-                <button
+                <Button
                   type="button"
                   onClick={() => dispatch({ type: "SET_FIELD", field: "identifierType", value: "email" })}
-                  className={`flex-1 p-2.5 border border-gray-300 rounded cursor-pointer transition-all duration-200 ${
+                  className={`flex-1 px-3 py-1.5 border border-gray-300 cursor-pointer transition-all duration-200 text-sm ${
                     formState.identifierType === "email"
-                      ? "bg-blue-600 text-white"
+                      ? "bg-secondary text-white"
                       : "bg-gray-100 text-gray-800"
                   }`}
                 >
                   Email
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={() => dispatch({ type: "SET_FIELD", field: "identifierType", value: "phone" })}
-                  className={`flex-1 p-2.5 border border-gray-300 rounded cursor-pointer transition-all duration-200 ${
+                  className={`flex-1 px-3 py-1.5 border border-gray-300 cursor-pointer transition-all duration-200 text-sm ${
                     formState.identifierType === "phone"
-                      ? "bg-blue-600 text-white"
+                      ? "bg-secondary text-white"
                       : "bg-gray-100 text-gray-800"
                   }`}
                 >
                   Phone
-                </button>
+                </Button>
               </div>
-              <label className="block mb-1.5">
-                {formState.identifierType === "email" ? "Email" : "Phone Number"}
-              </label>
-              <input
+              <Input
                 type={formState.identifierType === "email" ? "email" : "tel"}
                 value={formState.identifier}
                 onChange={(e) => dispatch({ type: "SET_FIELD", field: "identifier", value: e.target.value })}
                 required
-                className="w-full p-2.5 border border-gray-300 rounded text-base"
+                className="w-full p-2.5 border border-gray-300 text-base"
                 placeholder={
                   formState.identifierType === "email"
                     ? "Enter your email"
@@ -250,17 +256,17 @@ export function AuthWithOTP({ children }: AuthWithOTPProps) {
                 }
               />
             </div>
-            <button
+            <Button
               type="submit"
               disabled={formState.loading}
-              className={`w-full py-3 text-white border-none rounded text-base ${
+              className={`w-full py-3 text-white border-none text-base ${
                 formState.loading
                   ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-blue-600 cursor-pointer hover:bg-blue-700"
+                  : "bg-primary cursor-pointer hover:bg-primary-hover"
               }`}
             >
               {formState.loading ? "Sending..." : "Send OTP"}
-            </button>
+            </Button>
           </form>
         )}
 
@@ -270,36 +276,36 @@ export function AuthWithOTP({ children }: AuthWithOTPProps) {
               We've sent a code to {formState.identifier}
             </p>
             <div className="mb-5">
-              <label className="block mb-1.5">Enter OTP Code</label>
-              <input
+              <Input
                 type="text"
                 value={formState.otp}
                 onChange={(e) => dispatch({ type: "SET_FIELD", field: "otp", value: e.target.value })}
                 required
-                className="w-full p-2.5 border border-gray-300 rounded text-base text-center tracking-widest"
+                className="w-full p-2.5 border border-gray-300 text-base text-center tracking-widest"
                 placeholder="123456"
               />
             </div>
-            <button
+            <Button
               type="submit"
               disabled={formState.loading}
-              className={`w-full py-3 text-white border-none rounded text-base ${
+              className={`w-full py-3 text-white border-none text-base ${
                 formState.loading
                   ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-green-600 cursor-pointer hover:bg-green-700"
+                  : "bg-primary cursor-pointer hover:bg-primary-hover"
               }`}
             >
               {formState.loading ? "Verifying..." : "Verify OTP"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => dispatch({ type: "UPDATE_FORM", updates: { step: "identifier", otp: "" } })}
-              className="w-full py-3 bg-transparent text-blue-600 border-none text-sm cursor-pointer mt-2.5 hover:text-blue-800"
+              className="w-full py-3 bg-transparent text-primary border-none text-sm cursor-pointer mt-2.5 hover:text-primary-hover"
             >
               Back to email
-            </button>
+            </Button>
           </form>
         )}
+        </div>
       </div>
     </div>
   );
