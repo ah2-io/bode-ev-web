@@ -5,6 +5,7 @@ import L from 'leaflet';
 import { generateClient } from 'aws-amplify/data';
 import { useStationsStore } from '../store/stationsStore';
 import LocationButton from './LocationButton';
+import StationMarker from './StationMarker';
 
 let client: any = null;
 try {
@@ -210,14 +211,11 @@ export default function MapComponent({ className = '' }: MapComponentProps) {
             station.coordinates[1] <= 180
           )
           .map((station) => (
-            <Marker 
-              key={station.id} 
-              position={station.coordinates}
-              eventHandlers={{
-                click: () => {
-                  setSelectedStation(station.id);
-                }
-              }}
+            <StationMarker
+              key={station.id}
+              station={station}
+              isSelected={selectedStationId === station.id}
+              onClick={(station) => setSelectedStation(station.id)}
             />
           ))}
 
