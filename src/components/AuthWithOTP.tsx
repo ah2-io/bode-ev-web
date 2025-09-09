@@ -1,125 +1,201 @@
-import React, { useState, useEffect } from "react";
+import React, { useReducer, useEffect } from "react";
 import {
   signIn,
   confirmSignIn,
   fetchAuthSession,
   signOut,
-  type SignInOutput,
+  getCurrentUser,
 } from "aws-amplify/auth";
+import { useUserStore } from '../store/userStore';
 import "@aws-amplify/ui-react/styles.css";
 
 interface AuthWithOTPProps {
   children: React.ReactNode;
 }
 
+interface AuthFormState {
+  identifier: string;
+  identifierType: "email" | "phone";
+  otp: string;
+  step: "identifier" | "otp" | "authenticated";
+  loading: boolean;
+  error: string;
+}
+
+type AuthFormAction =
+  | { type: "SET_FIELD"; field: keyof AuthFormState; value: any }
+  | { type: "UPDATE_FORM"; updates: Partial<AuthFormState> }
+  | { type: "RESET_FORM" }
+  | { type: "SET_LOADING"; loading: boolean }
+  | { type: "SET_ERROR"; error: string }
+  | { type: "SEND_OTP_SUCCESS" }
+  | { type: "VERIFY_OTP_SUCCESS" };
+
+const initialFormState: AuthFormState = {
+  identifier: "",
+  identifierType: "email",
+  otp: "",
+  step: "identifier",
+  loading: false,
+  error: ""
+};
+
+function authFormReducer(state: AuthFormState, action: AuthFormAction): AuthFormState {
+  switch (action.type) {
+    case "SET_FIELD":
+      return { ...state, [action.field]: action.value };
+    case "UPDATE_FORM":
+      return { ...state, ...action.updates };
+    case "RESET_FORM":
+      return initialFormState;
+    case "SET_LOADING":
+      return { ...state, loading: action.loading, error: "" };
+    case "SET_ERROR":
+      return { ...state, error: action.error, loading: false };
+    case "SEND_OTP_SUCCESS":
+      return { ...state, step: "otp", loading: false, error: "" };
+    case "VERIFY_OTP_SUCCESS":
+      return { ...state, step: "authenticated", loading: false, error: "" };
+    default:
+      return state;
+  }
+}
+
 export function AuthWithOTP({ children }: AuthWithOTPProps) {
-  const [identifier, setIdentifier] = useState("");
-  const [identifierType, setIdentifierType] = useState<"email" | "phone">(
-    "email"
-  );
-  const [otp, setOtp] = useState("");
-  const [step, setStep] = useState<"identifier" | "otp" | "authenticated">(
-    "identifier"
-  );
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [formState, dispatch] = useReducer(authFormReducer, initialFormState);
+  const { user, setUser, setLoading: setUserLoading, clearUser, isAuthenticated } = useUserStore();
+  const [initialCheckComplete, setInitialCheckComplete] = React.useState(false);
 
   useEffect(() => {
-    checkAuthStatus();
+    if (isAuthenticated && user) {
+      verifyPersistedAuth();
+    } else {
+      checkAuthStatus();
+    }
   }, []);
 
-  const checkAuthStatus = async () => {
+  const verifyPersistedAuth = async () => {
     try {
       const session = await fetchAuthSession();
       if (session.tokens) {
-        setStep("authenticated");
+        // Session is still valid, update to authenticated state
+        dispatch({ type: "VERIFY_OTP_SUCCESS" });
+        setInitialCheckComplete(true);
+      } else {
+        // Session expired, clear user and show login
+        clearUser();
+        setInitialCheckComplete(true);
+      }
+    } catch (err) {
+      console.log("Session validation failed");
+      clearUser();
+      setInitialCheckComplete(true);
+    }
+  };
+
+  const checkAuthStatus = async () => {
+    try {
+      setUserLoading(true);
+      const session = await fetchAuthSession();
+      if (session.tokens) {
+        const currentUser = await getCurrentUser();
         setUser({
+          ...currentUser,
           username:
             session.tokens.idToken?.payload?.email ||
             session.tokens.idToken?.payload?.phone_number,
-        });
+        } as any);
+        dispatch({ type: "VERIFY_OTP_SUCCESS" });
+      } else {
+        clearUser();
       }
     } catch (err) {
       console.log("Not authenticated");
+      clearUser();
+    } finally {
+      setUserLoading(false);
+      setInitialCheckComplete(true);
     }
   };
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
+    dispatch({ type: "SET_LOADING", loading: true });
 
     try {
-      console.log("(debig) identifier:", identifier);
-      console.log("(debig) identifierType:", identifierType);
-
       const signInOutput = await signIn({
-        username: identifier,
+        username: formState.identifier,
         options: {
           authFlowType: "USER_AUTH",
           preferredChallenge:
-            identifierType === "phone" ? "SMS_OTP" : "EMAIL_OTP",
+            formState.identifierType === "phone" ? "SMS_OTP" : "EMAIL_OTP",
         },
       });
 
       const expectedStep =
-        identifierType === "phone"
+        formState.identifierType === "phone"
           ? "CONFIRM_SIGN_IN_WITH_SMS_CODE"
           : "CONFIRM_SIGN_IN_WITH_EMAIL_CODE";
 
       if (signInOutput.nextStep?.signInStep === expectedStep) {
-        setStep("otp");
+        dispatch({ type: "SEND_OTP_SUCCESS" });
       }
     } catch (err: any) {
       console.error("Auth error:", err);
-      setError(err.message || "Error sending OTP");
-    } finally {
-      setLoading(false);
+      dispatch({ type: "SET_ERROR", error: err.message || "Error sending OTP" });
     }
   };
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
+    dispatch({ type: "SET_LOADING", loading: true });
 
     try {
       const result = await confirmSignIn({
-        challengeResponse: otp,
+        challengeResponse: formState.otp,
       });
 
       if (result.isSignedIn) {
-        setStep("authenticated");
-        checkAuthStatus();
+        await checkAuthStatus();
+        dispatch({ type: "VERIFY_OTP_SUCCESS" });
       }
     } catch (err: any) {
       console.error("Verification error:", err);
-      setError(err.message || "Invalid OTP");
-    } finally {
-      setLoading(false);
+      dispatch({ type: "SET_ERROR", error: err.message || "Invalid OTP" });
     }
   };
 
   const handleSignOut = async () => {
     try {
       await signOut();
-      setStep("identifier");
-      setUser(null);
-      setIdentifier("");
-      setOtp("");
+      clearUser();
+      dispatch({ type: "RESET_FORM" });
     } catch (err) {
       console.error("Error signing out:", err);
     }
   };
 
-  if (step === "authenticated" && user) {
+  // Show loading spinner during initial auth check
+  if (!initialCheckComplete) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If authenticated, show the app
+  if (formState.step === "authenticated" && isAuthenticated && user) {
     return React.cloneElement(children as React.ReactElement, {
       user,
       handleSignOut,
     });
   }
 
+  // Otherwise, show the login form
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50">
       <div className="bg-white p-10 rounded-lg shadow-lg w-full max-w-md">
@@ -127,19 +203,19 @@ export function AuthWithOTP({ children }: AuthWithOTPProps) {
           sign in to bodeEV
         </h1>
 
-        {error && (
-          <div className="bg-red-50 text-red-700 p-3 rounded mb-5">{error}</div>
+        {formState.error && (
+          <div className="bg-red-50 text-red-700 p-3 rounded mb-5">{formState.error}</div>
         )}
 
-        {step === "identifier" && (
+        {formState.step === "identifier" && (
           <form onSubmit={handleSendOTP}>
             <div className="mb-5">
               <div className="flex gap-3 mb-4">
                 <button
                   type="button"
-                  onClick={() => setIdentifierType("email")}
+                  onClick={() => dispatch({ type: "SET_FIELD", field: "identifierType", value: "email" })}
                   className={`flex-1 p-2.5 border border-gray-300 rounded cursor-pointer transition-all duration-200 ${
-                    identifierType === "email"
+                    formState.identifierType === "email"
                       ? "bg-blue-600 text-white"
                       : "bg-gray-100 text-gray-800"
                   }`}
@@ -148,9 +224,9 @@ export function AuthWithOTP({ children }: AuthWithOTPProps) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIdentifierType("phone")}
+                  onClick={() => dispatch({ type: "SET_FIELD", field: "identifierType", value: "phone" })}
                   className={`flex-1 p-2.5 border border-gray-300 rounded cursor-pointer transition-all duration-200 ${
-                    identifierType === "phone"
+                    formState.identifierType === "phone"
                       ? "bg-blue-600 text-white"
                       : "bg-gray-100 text-gray-800"
                   }`}
@@ -159,16 +235,16 @@ export function AuthWithOTP({ children }: AuthWithOTPProps) {
                 </button>
               </div>
               <label className="block mb-1.5">
-                {identifierType === "email" ? "Email" : "Phone Number"}
+                {formState.identifierType === "email" ? "Email" : "Phone Number"}
               </label>
               <input
-                type={identifierType === "email" ? "email" : "tel"}
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
+                type={formState.identifierType === "email" ? "email" : "tel"}
+                value={formState.identifier}
+                onChange={(e) => dispatch({ type: "SET_FIELD", field: "identifier", value: e.target.value })}
                 required
                 className="w-full p-2.5 border border-gray-300 rounded text-base"
                 placeholder={
-                  identifierType === "email"
+                  formState.identifierType === "email"
                     ? "Enter your email"
                     : "+1 (555) 123-4567"
                 }
@@ -176,29 +252,29 @@ export function AuthWithOTP({ children }: AuthWithOTPProps) {
             </div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={formState.loading}
               className={`w-full py-3 text-white border-none rounded text-base ${
-                loading
+                formState.loading
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-blue-600 cursor-pointer hover:bg-blue-700"
               }`}
             >
-              {loading ? "Sending..." : "Send OTP"}
+              {formState.loading ? "Sending..." : "Send OTP"}
             </button>
           </form>
         )}
 
-        {step === "otp" && (
+        {formState.step === "otp" && (
           <form onSubmit={handleVerifyOTP}>
             <p className="mb-5 text-gray-600">
-              We've sent a code to {identifier}
+              We've sent a code to {formState.identifier}
             </p>
             <div className="mb-5">
               <label className="block mb-1.5">Enter OTP Code</label>
               <input
                 type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
+                value={formState.otp}
+                onChange={(e) => dispatch({ type: "SET_FIELD", field: "otp", value: e.target.value })}
                 required
                 className="w-full p-2.5 border border-gray-300 rounded text-base text-center tracking-widest"
                 placeholder="123456"
@@ -206,21 +282,18 @@ export function AuthWithOTP({ children }: AuthWithOTPProps) {
             </div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={formState.loading}
               className={`w-full py-3 text-white border-none rounded text-base ${
-                loading
+                formState.loading
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-green-600 cursor-pointer hover:bg-green-700"
               }`}
             >
-              {loading ? "Verifying..." : "Verify OTP"}
+              {formState.loading ? "Verifying..." : "Verify OTP"}
             </button>
             <button
               type="button"
-              onClick={() => {
-                setStep("identifier");
-                setOtp("");
-              }}
+              onClick={() => dispatch({ type: "UPDATE_FORM", updates: { step: "identifier", otp: "" } })}
               className="w-full py-3 bg-transparent text-blue-600 border-none text-sm cursor-pointer mt-2.5 hover:text-blue-800"
             >
               Back to email
